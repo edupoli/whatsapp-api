@@ -1,0 +1,28 @@
+{
+  "name": "whatsapp-api",
+  "version": "1.0.0",
+  "description": "API para envio de mensagens no Whatsapp",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/edupoli/whatsapp-api.git"
+  },
+  "keywords": [
+    "api",
+    "whatsapp",
+    "venom"
+  ],
+  "author": "Eduardo Policarpo",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/edupoli/whatsapp-api/issues"
+  },
+  "homepage": "https://github.com/edupoli/whatsapp-api#readme",
+  "dependencies": {
+    "express": "^4.17.1",
+    "venom-bot": "^1.1.4"
+  }
+}
