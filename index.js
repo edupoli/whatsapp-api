@@ -30,7 +30,7 @@ const parameters = {
       })
 
     app.get("/api", async function(req,res,next){
-        await client.sendMessageToId('55'+ req.query.celular + '@c.us', req.query.mensagem);
+        await client.sendText('55'+ req.query.celular + '@c.us', req.query.mensagem);
         res.json(req.query);
     })
 
