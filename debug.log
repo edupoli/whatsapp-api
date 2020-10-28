@@ -1,0 +1,7 @@
+[1028/110403.090:ERROR:file_io_win.cc(162)] CreateFile C:\Users\Eduardo\AppData\Local\Temp\puppeteer_dev_chrome_profile-dujJX1\Crashpad\settings.dat: O sistema não pode encontrar o caminho especificado. (0x3)
+[1028/110403.091:ERROR:file_io_win.cc(171)] CreateFile C:\Users\Eduardo\AppData\Local\Temp\puppeteer_dev_chrome_profile-dujJX1\Crashpad\reports\f161b081-65b6-4466-bd12-74df1d8c29a4.dmp: O sistema não pode encontrar o caminho especificado. (0x3)
+[1028/110403.091:ERROR:crash_report_exception_handler.cc(99)] PrepareNewCrashReport failed
+[1028/111406.678:ERROR:directory_reader_win.cc(43)] FindFirstFile: O sistema não pode encontrar o caminho especificado. (0x3)
+[1028/111603.695:ERROR:file_io_win.cc(162)] CreateFile C:\Users\Eduardo\AppData\Local\Temp\puppeteer_dev_chrome_profile-v0Zina\Crashpad\settings.dat: O sistema não pode encontrar o caminho especificado. (0x3)
+[1028/111603.696:ERROR:file_io_win.cc(171)] CreateFile C:\Users\Eduardo\AppData\Local\Temp\puppeteer_dev_chrome_profile-v0Zina\Crashpad\reports\19c089bd-7ecf-4b47-ae01-6a80f82d6f7f.dmp: O sistema não pode encontrar o caminho especificado. (0x3)
+[1028/111603.696:ERROR:crash_report_exception_handler.cc(99)] PrepareNewCrashReport failed

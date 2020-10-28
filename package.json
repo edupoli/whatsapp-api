@@ -23,6 +23,8 @@
   "homepage": "https://github.com/edupoli/whatsapp-api#readme",
   "dependencies": {
     "express": "^4.17.1",
-    "venom-bot": "^1.1.4"
+    "puppeteer": "^5.4.1",
+    "rxjs": "^6.6.3",
+    "venom-bot": "^2.0.18"
   }
 }
