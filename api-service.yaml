@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: api-server-app
-        image: edupoli/api-server:1.0.0
+        image: edupoli/api-service:${TAG_VERSION}
         resources:
           limits:
             cpu: '2'
@@ -25,6 +25,18 @@ spec:
         envFrom:
           - configMapRef:
               name: api-server-config
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 15
+          timeoutSeconds: 2
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 5
+          timeoutSeconds: 2
        
 ---
 apiVersion: v1
