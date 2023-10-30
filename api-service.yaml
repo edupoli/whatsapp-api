@@ -15,8 +15,6 @@ spec:
       containers:
       - name: api-server-app
         image: registry.gitlab.com/worker-group/api-service:v1.0.1
-        imagePullSecrets:
-          - name: gitlab-registry
         resources:
           limits:
             cpu: '2'
@@ -39,6 +37,8 @@ spec:
             port: 3000
           initialDelaySeconds: 5
           timeoutSeconds: 2
+      imagePullSecrets:
+        - name: gitlab-registry
        
 ---
 apiVersion: v1
