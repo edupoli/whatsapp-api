@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: api-server-app
-        image: api-service:1.0.0
+        image: edupoli/api-server:1.0.0
         resources:
           limits:
             cpu: '2'
