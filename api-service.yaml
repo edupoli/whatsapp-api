@@ -14,7 +14,9 @@ spec:
     spec:
       containers:
       - name: api-server-app
-        image: edupoli/api-service:${TAG_VERSION}
+        image: registry.gitlab.com/worker-group/api-service:v1.0.1
+        imagePullSecrets:
+          - name: gitlab-registry
         resources:
           limits:
             cpu: '2'
