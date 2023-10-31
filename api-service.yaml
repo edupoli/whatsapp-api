@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: api-server-app
-        image: registry.gitlab.com/worker-group/api-service:v1.0.1
+        image: registry.gitlab.com/worker-group/api-service:v1.0.2
         resources:
           limits:
             cpu: '2'
@@ -39,7 +39,7 @@ spec:
           timeoutSeconds: 2
       imagePullSecrets:
         - name: gitlab-registry
-       
+
 ---
 apiVersion: v1
 kind: Service
@@ -63,7 +63,7 @@ metadata:
 data:
   NODE_ENV: production
   PORT: '3000'
-  HOST: localhost
+  HOST: ${DOMAIN}
   DB_TYPE: mongodb
   DB_HOST: mongodb-server
   DB_PORT: '27017'
