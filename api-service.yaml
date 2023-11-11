@@ -17,10 +17,10 @@ spec:
         image: registry.gitlab.com/worker-group/api-service:latest
         resources:
           limits:
-            cpu: '2'
+            cpu: '600m'
             memory: '5Gi'
           requests:
-            cpu: '1'
+            cpu: '250m'
             memory: '3Gi'
         envFrom:
           - configMapRef:
