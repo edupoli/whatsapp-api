@@ -65,13 +65,13 @@ data:
   PORT: '3000'
   HOST: ${DOMAIN}
   DB_TYPE: mongodb
-  DB_HOST: mongodb-server
+  DB_HOST: mongodb-cluster
   DB_PORT: '27017'
   DB_USER: admin
   DB_PASS: admin
   DB_NAME: wappi
   SENTRY_DSN: ''
-  AMQP_HOST: rabbitmq-server
+  AMQP_HOST: rabbitmq-cluster
   AMQP_PORT: '5672'
   AMQP_USER: admin
   AMQP_PASSWORD: admin
