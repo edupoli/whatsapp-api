@@ -65,7 +65,7 @@ data:
   PORT: '3000'
   HOST: ${DOMAIN}
   DB_TYPE: mongodb
-  DB_HOST: mongodb-cluster.infra.svc.cluster.local
+  DB_HOST: mongodb-cluster-headless.infra.svc.cluster.local
   DB_PORT: '27017'
   DB_USER: admin
   DB_PASS: admin
