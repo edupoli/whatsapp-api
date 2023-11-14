@@ -1,30 +1,58 @@
 #!/bin/bash
 
-  get_public_ip() {
-  local ip services=(https://ipinfo.io/ip http://ifconfig.me)
-  
+get_public_ip() {
+  local ip
+  local services=(
+    "https://api.ipify.org"
+    "https://ipinfo.io/ip"
+    "http://ifconfig.me"
+    "https://ipecho.net/plain"
+    "https://ifconfig.co"
+    "https://myexternalip.com/raw"
+  )
+
   for service in "${services[@]}"; do
-    ip=$(curl -s "$service")
-    if [ -n "$ip" ]; then
+    ip=$(timeout 5 curl -s "$service")
+    if [[ "$ip" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]]; then
       echo "$ip"
-      return
+      return 0
     fi
   done
-  
-  echo "$(hostname -I | awk '{print $1}')"
+
+  echo "Não foi possível determinar o IP público."
+  exit 1
 }
 
 validate_domain() {
-  local host=$1 ip vps_ip=$(get_public_ip)
-  ip=$(dig +short "$host" | tail -n1)
-  if [ -n "$ip" ] && [ "$ip" == "$vps_ip" ]; then
-    return 0
-  elif whiptail --title "ERRO" --yesno "O domínio informado não existe ou não aponta para essa VPS. Para prosseguir com a instalacao é necessario um dominio valido e configurado. Deseja informar um novo domínio?" --fb 10 60; then
-    return 1
-  else
+  local host=$1
+  local ip
+  local vps_ip=$(get_public_ip)
+
+  if [ $? -ne 0 ]; then
+    echo "Erro ao obter o IP público da VPS."
     exit 1
   fi
+
+  ip=$(dig A "$host" +noall +answer | awk '{print $NF}')
+  if [ -z "$ip" ]; then
+    if whiptail --title "ERRO" --yesno "O domínio informado não existe. Deseja informar um novo domínio?" 10 60; then
+      return 1
+    else
+      echo "Instalação cancelada pelo usuário."
+      exit 1
+    fi
+  elif [ "$ip" == "$vps_ip" ]; then
+    return 0
+  else
+    if whiptail --title "ERRO" --yesno "O domínio informado não aponta para o IP desta VPS. Deseja informar um novo domínio?" 10 60; then
+      return 1
+    else
+      echo "Instalação cancelada pelo usuário."
+      exit 1
+    fi
+  fi
 }
+
 
 # Função para validar um endereço de e-mail
 validate_email() {
@@ -82,6 +110,9 @@ done
 sudo snap install microk8s --classic
 
 microk8s enable hostpath-storage
+microk8s enable metrics-server
+microk8s enable observability
+microk8s kubectl create namespace infra
 
 # Configuração do cert-manager
 microk8s enable cert-manager
@@ -110,19 +141,35 @@ microk8s enable helm
 microk8s helm repo add bitnami https://charts.bitnami.com/bitnami
 microk8s helm repo update       
 
-microk8s helm install mongodb-server bitnami/mongodb \
+
+microk8s helm install mongodb-cluster bitnami/mongodb \
+  --set architecture=replicaset \
   --set auth.username=admin \
   --set auth.password=admin \
   --set auth.database=wappi \
-  --set service.type=ClusterIP
+  --set replicaCount=2 \
+  --set persistence.size=25Gi \
+  --namespace infra
 
 
-microk8s helm install rabbitmq-server bitnami/rabbitmq \
+microk8s helm install rabbitmq-cluster bitnami/rabbitmq \
   --set image.repository=edupoli/rabbitmq \
   --set image.tag=1.0.6 \
   --set auth.username=admin \
   --set auth.password=admin \
-  --set service.type=ClusterIP
+  --set replicaCount=2 \
+  --set persistence.enabled=true \
+  --set persistence.size=25Gi \
+  --namespace infra
+
+
+microk8s helm install redis-cluster bitnami/redis \
+  --set cluster.enabled=true \
+  --set cluster.slaveCount=1 \
+  --set master.persistence.enabled=true \
+  --set slave.persistence.enabled=true \
+  --namespace infra
+
 
 
 # deploy api-server
@@ -138,12 +185,48 @@ microk8s kubectl create ingress my-ingress \
     --rule "${DOMAIN}/*=api-server-service:3000,tls=my-service-tls"
 
 microk8s config > kubeconfig.yaml
-sed -i '/certificate-authority-data/d' kubeconfig.yaml
 sed -i "s|server: https://.*:16443|server: https://${DOMAIN}:16443|" kubeconfig.yaml
-sed -i '/clusters:/a \ \ \ \ insecure-skip-tls-verify: true' kubeconfig.yaml
+sed -i '/certificate-authority-data/d' kubeconfig.yaml
+sed -i '/server: https:\/\//a \ \ \ \ insecure-skip-tls-verify: true' kubeconfig.yaml
+sed -i 's|microk8s-cluster|api-server|g' kubeconfig.yaml
+
+
 
 # configura o envio de email
 
 # criando alias para kubectl
 sudo echo "alias kubectl='microk8s kubectl'" >>/root/.bashrc
 sudo echo "alias k='microk8s kubectl'" >>/root/.bashrc
+
+# criar a pasta log para armazenar os logs 
+sudo mkdir -p /root/logs
+sudo chmod -R 777 /root/logs
+
+
+microk8s kubectl apply -f - <<EOF
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: host-logs
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteMany
+  hostPath:
+    path: "/root/logs"
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: logs-claim
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+EOF
