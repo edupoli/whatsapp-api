@@ -71,7 +71,7 @@ data:
   DB_PASS: admin
   DB_NAME: wappi
   SENTRY_DSN: ''
-  AMQP_HOST: rabbitmq-cluster-headless.infra.svc.cluster.local
+  AMQP_HOST: rabbitmq-cluster.infra.svc.cluster.local
   AMQP_PORT: '5672'
   AMQP_USER: admin
   AMQP_PASSWORD: admin
