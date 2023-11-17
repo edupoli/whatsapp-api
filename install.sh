@@ -1,5 +1,11 @@
 #!/bin/bash
 
+readonly RED="\033[1;31m"
+readonly WHITE="\033[1;37m"
+readonly GREEN="\033[1;32m"
+readonly GRAY_LIGHT="\033[0;37m"
+readonly YELLOW="\033[1;33m"
+
 get_public_ip() {
   local ip
   local services=(
@@ -19,7 +25,7 @@ get_public_ip() {
     fi
   done
 
-  echo "Não foi possível determinar o IP público."
+  printf "${RED}❌  Não foi possível determinar o IP público.${GRAY_LIGHT}\n"
   exit 1
 }
 
@@ -29,30 +35,29 @@ validate_domain() {
   local vps_ip=$(get_public_ip)
 
   if [ $? -ne 0 ]; then
-    echo "Erro ao obter o IP público da VPS."
+    printf "${RED}❌  Erro ao obter o IP público da VPS.${GRAY_LIGHT}\n"
     exit 1
   fi
 
   ip=$(dig A "$host" +noall +answer | awk '{print $NF}')
   if [ -z "$ip" ]; then
-    if whiptail --title "ERRO" --yesno "O domínio informado não existe. Deseja informar um novo domínio?" 10 60; then
+    if printf "${YELLOW}❕ O domínio informado não existe. Deseja informar um novo domínio?${GRAY_LIGHT}\n\n" && read -r -p "Digite 's' para sim, 'n' para não: " response && [[ "$response" == "s" ]]; then
       return 1
     else
-      echo "Instalação cancelada pelo usuário."
+      printf "${RED}❌ Instalação cancelada pelo usuário.${GRAY_LIGHT}\n"
       exit 1
     fi
   elif [ "$ip" == "$vps_ip" ]; then
     return 0
   else
-    if whiptail --title "ERRO" --yesno "O domínio informado não aponta para o IP desta VPS. Deseja informar um novo domínio?" 10 60; then
+    if printf "${YELLOW}❕ O domínio informado não aponta para o IP desta VPS. Deseja informar um novo domínio?${GRAY_LIGHT}\n\n" && read -r -p "Digite 's' para sim, 'n' para não: " response && [[ "$response" == "s" ]]; then
       return 1
     else
-      echo "Instalação cancelada pelo usuário."
+      printf "${RED}❌ Instalação cancelada pelo usuário.${GRAY_LIGHT}\n"
       exit 1
     fi
   fi
 }
-
 
 # Função para validar um endereço de e-mail
 validate_email() {
@@ -60,7 +65,7 @@ validate_email() {
   local email_regex="^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$"
   if [[ $email =~ $email_regex ]]; then
     return 0
-  elif whiptail --title "ERRO" --yesno "O e-mail $email nao e valido. Para prosseguir com a instalacao e necessario um email valido. Deseja informar o email novamente?" --fb 15 60; then
+  elif printf "${YELLOW}❕ O e-mail $email não é válido. Para prosseguir com a instalação, é necessário um e-mail válido. Deseja informar o e-mail novamente?${GRAY_LIGHT}\n\n" && read -r -p "Digite 's' para sim, 'n' para não: " response && [[ "$response" == "s" ]]; then
     return 1
   else
     exit 1
@@ -68,46 +73,49 @@ validate_email() {
 }
 
 while true; do
-  export DOMAIN=$(whiptail --title "INFORMAR DOMINIO para a API" --inputbox "Digite o valor:" --fb 10 60 3>&1 1>&2 2>&3)
-  exitstatus=$?
-
-  if [ $exitstatus -ne 0 ]; then
-    exit 1
-  fi
+  export DOMAIN
+  printf "${WHITE}💻 Insira o domínio para a API:${GRAY_LIGHT} "
+  read -r DOMAIN
 
   if [ -z "$DOMAIN" ]; then
-    whiptail --title "Erro" --msgbox "O dominio e obrigatorio...Você deve informar um valor." --fb 15 60
+    printf "${YELLOW}❕ O domínio é obrigatório. Você deve informar um valor.❕ ${GRAY_LIGHT}\n"
     continue
   fi
 
   if validate_domain "$DOMAIN"; then
-    if (whiptail --title "DOMINIO" --yesno "$DOMAIN está correto?" --fb 10 60 3>&1 1>&2 2>&3); then
+    printf "${GREEN}$DOMAIN está correto ❓${GRAY_LIGHT}\n"
+    read -r response
+    if [[ "$response" == "s" ]]; then
       break
     fi
   fi
 done
 
 while true; do
-  export EMAIL=$(whiptail --title "INFORMAR E-MAIL PARA GERAR SSL" --inputbox "Digite o valor:" --fb 10 60 3>&1 1>&2 2>&3)
-  exitstatus=$?
-
-  if [ $exitstatus -ne 0 ]; then
-    exit 1
-  fi
+  export EMAIL
+  printf "${WHITE}📧 Insira o e-mail para gerar o SSL: 🔐${GRAY_LIGHT} "
+  read -r EMAIL
 
   if [ -z "$EMAIL" ]; then
-    whiptail --title "Erro" --msgbox "O e-mail e obrigatorio...Você deve informar um valor." --fb 10 60
+    printf "${YELLOW}❕ O e-mail é obrigatório. Você deve informar um valor. ❕${GRAY_LIGHT}\n"
     continue
   fi
 
   if validate_email "$EMAIL"; then
-    if (whiptail --title "E-MAIL" --yesno "$EMAIL está correto?" --fb 10 60 3>&1 1>&2 2>&3); then
+    printf "${GREEN}$EMAIL está correto ❓${GRAY_LIGHT}\n"
+    read -r response
+    if [[ "$response" == "s" ]]; then
       break
     fi
   fi
 done
 
 sudo snap install microk8s --classic
+
+# criando alias para kubectl
+sudo echo "alias kubectl='microk8s kubectl'" >>/root/.bashrc
+sudo echo "alias k='microk8s kubectl'" >>/root/.bashrc
+
 
 microk8s enable hostpath-storage
 microk8s enable metrics-server
@@ -139,7 +147,12 @@ microk8s enable ingress
 microk8s enable helm
 
 microk8s helm repo add bitnami https://charts.bitnami.com/bitnami
+# microk8s helm3 repo add ot-helm https://ot-container-kit.github.io/helm-charts/
 microk8s helm repo update       
+
+# microk8s helm install redis-operator ot-helm/redis-operator \
+#   --namespace infra
+
 
 
 microk8s helm install mongodb-cluster bitnami/mongodb \
@@ -163,12 +176,19 @@ microk8s helm install rabbitmq-cluster bitnami/rabbitmq \
   --namespace infra
 
 
-microk8s helm install redis-cluster bitnami/redis \
-  --set cluster.enabled=true \
-  --set cluster.slaveCount=1 \
-  --set master.persistence.enabled=true \
-  --set slave.persistence.enabled=true \
+microk8s helm install redis-sentinel bitnami/redis \
+  --set sentinel.enabled=true \
+  --set persistence.enabled=true \
   --namespace infra
+
+microk8s kubectl apply -f https://raw.githubusercontent.com/edupoli/whatsapp-api/master/redis-secret.yaml
+
+# microk8s helm install redis-cluster bitnami/redis \
+#   --set cluster.enabled=true \
+#   --set cluster.slaveCount=1 \
+#   --set master.persistence.enabled=true \
+#   --set slave.persistence.enabled=true \
+#   --namespace infra
 
 
 
@@ -193,10 +213,6 @@ sed -i 's|microk8s-cluster|api-server|g' kubeconfig.yaml
 
 
 # configura o envio de email
-
-# criando alias para kubectl
-sudo echo "alias kubectl='microk8s kubectl'" >>/root/.bashrc
-sudo echo "alias k='microk8s kubectl'" >>/root/.bashrc
 
 # criar a pasta log para armazenar os logs 
 sudo mkdir -p /root/logs
@@ -230,3 +246,6 @@ spec:
     requests:
       storage: 10Gi
 EOF
+printf "${GREEN} INSTALACAO CONCLUIDA 🚀🚀🚀🚀${GRAY_LIGHT} "  
+
+#/bin/bash -c "$(curl -fsSL https://install.wappi.io)"
