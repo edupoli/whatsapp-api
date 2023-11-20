@@ -1,8 +1,17 @@
 apiVersion: v1
 data:
-  .dockerconfigjson: eyJhdXRocyI6eyJyZWdpc3RyeS5naXRsYWIuY29tIjp7InVzZXJuYW1lIjoiZWR1YXJkby1wb2xpY2FycG8iLCJwYXNzd29yZCI6ImdscGF0LUU2YWR5a3ZLTkV5Wk1wNEdnckZCIiwiZW1haWwiOiJlZHVhcmRwb2xpY2FycG9AZ21haWwuY29tIiwiYXV0aCI6IlpXUjFZWEprYnkxd2IyeHBZMkZ5Y0c4NloyeHdZWFF0UlRaaFpIbHJka3RPUlhsYVRYQTBSMmR5UmtJPSJ9fX0=
+  .dockerconfigjson: eyJhdXRocyI6eyJyZWdpc3RyeS5naXRsYWIuY29tIjp7InVzZXJuYW1lIjoiZ2l0bGFiK2RlcGxveS10b2tlbi0zNjU1ODkwIiwicGFzc3dvcmQiOiJnVHllQzQyeldBbU5kbWFVXzNORSIsImF1dGgiOiJaMmwwYkdGaUsyUmxjR3h2ZVMxMGIydGxiaTB6TmpVMU9Ea3dPbWRVZVdWRE5ESjZWMEZ0VG1SdFlWVmZNMDVGIn19fQ==
 kind: Secret
 metadata:
-  creationTimestamp: null
-  name: gitlab-registry
+  name: worker
+  namespace: default
+type: kubernetes.io/dockerconfigjson
+---
+apiVersion: v1
+data:
+  .dockerconfigjson: eyJhdXRocyI6eyJyZWdpc3RyeS5naXRsYWIuY29tIjp7InVzZXJuYW1lIjoiZ2l0bGFiK2RlcGxveS10b2tlbi0zNjU1MzIwIiwicGFzc3dvcmQiOiJ1cktoNkc1UkdiY3ppVG03TVItNiIsImF1dGgiOiJaMmwwYkdGaUsyUmxjR3h2ZVMxMGIydGxiaTB6TmpVMU16SXdPblZ5UzJnMlJ6VlNSMkpqZW1sVWJUZE5VaTAyIn19fQ==
+kind: Secret
+metadata:
+  name: api-service
+  namespace: default
 type: kubernetes.io/dockerconfigjson
