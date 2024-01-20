@@ -65,26 +65,32 @@ validate_email() {
   local email_regex="^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$"
   if [[ $email =~ $email_regex ]]; then
     return 0
-  elif printf "${YELLOW}❕ O e-mail $email não é válido. Para prosseguir com a instalação, é necessário um e-mail válido. Deseja informar o e-mail novamente?${GRAY_LIGHT}\n\n" && read -r -p "Digite 's' para sim, 'n' para não: " response && [[ "$response" == "s" ]]; then
-    return 1
   else
-    exit 1
+    printf "${YELLOW}❕ O e-mail $email não é válido. Para prosseguir com a instalação, é necessário um e-mail válido. Deseja informar o e-mail novamente?${GRAY_LIGHT}\n\n"
+    read -r -p "Digite 's' para sim, 'n' para não: " response
+    if [[ "$response" == "s" ]]; then
+      return 1
+    else
+      printf "${RED}❌ Instalação cancelada pelo usuário.${GRAY_LIGHT}\n"
+      exit 1
+    fi
   fi
 }
 
 while true; do
   export DOMAIN
   printf "${WHITE}💻 Insira o domínio para a API:${GRAY_LIGHT} "
-  read -r DOMAIN
+  read -r DOMAIN response 
 
   if [ -z "$DOMAIN" ]; then
     printf "${YELLOW}❕ O domínio é obrigatório. Você deve informar um valor.❕ ${GRAY_LIGHT}\n"
     continue
   fi
 
+
   if validate_domain "$DOMAIN"; then
     printf "${GREEN}$DOMAIN está correto ❓${GRAY_LIGHT}\n"
-    read -r response
+    read -r -p "Digite 's' para sim, 'n' para não: " response
     if [[ "$response" == "s" ]]; then
       break
     fi
@@ -103,13 +109,14 @@ while true; do
 
   if validate_email "$EMAIL"; then
     printf "${GREEN}$EMAIL está correto ❓${GRAY_LIGHT}\n"
-    read -r response
+    read -r -p "Digite 's' para sim, 'n' para não: " response
     if [[ "$response" == "s" ]]; then
       break
     fi
   fi
 done
 
+sudo apt-get update
 sudo snap install microk8s --classic
 
 # criando alias para kubectl
@@ -150,21 +157,6 @@ microk8s helm repo add bitnami https://charts.bitnami.com/bitnami
 # microk8s helm3 repo add ot-helm https://ot-container-kit.github.io/helm-charts/
 microk8s helm repo update       
 
-# microk8s helm install redis-operator ot-helm/redis-operator \
-#   --namespace infra
-
-
-
-microk8s helm install mongodb-cluster bitnami/mongodb \
-  --set architecture=replicaset \
-  --set auth.username=admin \
-  --set auth.password=admin \
-  --set auth.database=wappi \
-  --set replicaCount=2 \
-  --set persistence.size=25Gi \
-  --namespace infra
-
-
 microk8s helm install rabbitmq-cluster bitnami/rabbitmq \
   --set image.repository=edupoli/rabbitmq \
   --set image.tag=1.0.6 \
@@ -176,19 +168,15 @@ microk8s helm install rabbitmq-cluster bitnami/rabbitmq \
   --namespace infra
 
 
-microk8s helm install redis-sentinel bitnami/redis \
-  --set sentinel.enabled=true \
-  --set persistence.enabled=true \
+microk8s helm install mongodb-cluster bitnami/mongodb \
+  --set architecture=replicaset \
+  --set auth.rootPassword=admin123 \
+  --set auth.username=admin \
+  --set auth.password=admin \
+  --set auth.database=wappi \
+  --set replicaCount=2 \
+  --set persistence.size=25Gi \
   --namespace infra
-
-microk8s kubectl apply -f https://raw.githubusercontent.com/edupoli/whatsapp-api/master/redis-secret.yaml
-
-# microk8s helm install redis-cluster bitnami/redis \
-#   --set cluster.enabled=true \
-#   --set cluster.slaveCount=1 \
-#   --set master.persistence.enabled=true \
-#   --set slave.persistence.enabled=true \
-#   --namespace infra
 
 
 
@@ -217,6 +205,8 @@ sed -i 's|microk8s-cluster|api-server|g' kubeconfig.yaml
 # criar a pasta log para armazenar os logs 
 sudo mkdir -p /root/logs
 sudo chmod -R 777 /root/logs
+sudo mkdir -p /root/tokens
+sudo chmod -R 777 /root/tokens
 
 
 microk8s kubectl apply -f - <<EOF
@@ -245,6 +235,32 @@ spec:
   resources:
     requests:
       storage: 10Gi
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: tokens-pv
+spec:
+  capacity:
+    storage: 50Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  hostPath:
+    path: /root/tokens
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: tokens-pvc
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 50Gi
+
 EOF
 printf "${GREEN} INSTALACAO CONCLUIDA 🚀🚀🚀🚀${GRAY_LIGHT} "  
 
