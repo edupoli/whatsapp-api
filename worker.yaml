@@ -1,0 +1,77 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: worker
+data:
+  NODE_ENV: production
+  INSTANCE: edu
+  TOKEN: 5fbf01251196601084294745
+  AMQP_HOST: rabbitmq-cluster-headless.infra.svc.cluster.local
+  AMQP_PORT: "5672"
+  AMQP_USER: admin
+  AMQP_PASSWORD: admin
+  AMQP_EXCHANGE: API-WhatsApp
+  AUTO_REJECT_CALL: "false"
+  ANSWER_MISSED_CALL: Ola nao posso atender ligacoes
+  WEBHOOK: ""
+  SENTRY_DSN: ""
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sutia
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      containers:
+      - name: worker-container
+        image: registry.gitlab.com/api_whatsapp/worker:latest
+        ports:
+          - containerPort: 3000
+            name: http
+            protocol: TCP
+        envFrom:
+          - configMapRef:
+              name: worker
+        command: ["node"]
+        args: ["dist/src/app.js"]
+        
+        imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            cpu: "500m"
+            memory: 80M
+          limits:
+            cpu: "1000m"
+            memory: 240M
+        volumeMounts:
+        - name: tokens-storage
+          mountPath: /usr/local/app/tokens/edu
+      volumes:
+      - name: tokens-storage
+        persistentVolumeClaim:
+          claimName: tokens-pvc
+      - name: worker
+        configMap:
+          name: worker
+      
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: worker-service
+spec:
+  selector:
+    app: worker
+  ports:
+  - name: http
+    protocol: TCP
+    port: 3000
+    targetPort: 3000
