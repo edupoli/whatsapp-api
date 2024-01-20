@@ -4,7 +4,7 @@ metadata:
   name: worker
 data:
   NODE_ENV: production
-  INSTANCE: edu
+  INSTANCE: edu-policarpo
   TOKEN: 5fbf01251196601084294745
   AMQP_HOST: rabbitmq-cluster-headless.infra.svc.cluster.local
   AMQP_PORT: "5672"
@@ -53,7 +53,7 @@ spec:
             memory: 240M
         volumeMounts:
         - name: tokens-storage
-          mountPath: /usr/local/app/tokens/edu
+          mountPath: /usr/local/app/tokens/edu-policarpo
       volumes:
       - name: tokens-storage
         persistentVolumeClaim:
