@@ -61,6 +61,8 @@ spec:
       - name: worker
         configMap:
           name: worker
+      imagePullSecrets:
+        - name: worker-registry
       
 ---
 apiVersion: v1
