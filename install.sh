@@ -202,65 +202,30 @@ sed -i 's|microk8s-cluster|api-server|g' kubeconfig.yaml
 
 # configura o envio de email
 
-# criar a pasta log para armazenar os logs 
-sudo mkdir -p /root/logs
-sudo chmod -R 777 /root/logs
-sudo mkdir -p /root/tokens
-sudo chmod -R 777 /root/tokens
-
 
 microk8s kubectl apply -f - <<EOF
-apiVersion: v1
-kind: PersistentVolume
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
 metadata:
-  name: host-logs
-spec:
-  storageClassName: manual
-  capacity:
-    storage: 10Gi
-  accessModes:
-    - ReadWriteMany
-  hostPath:
-    path: "/root/logs"
+  name: api-data
+provisioner: microk8s.io/hostpath
+reclaimPolicy: Retain
+parameters:
+  pvDir: /home/API
+volumeBindingMode: WaitForFirstConsumer
 
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: logs-claim
+  name: api-storage
 spec:
-  storageClassName: manual
+  storageClassName: api-data
   accessModes:
     - ReadWriteMany
   resources:
     requests:
-      storage: 10Gi
-
----
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: tokens-pv
-spec:
-  capacity:
-    storage: 50Gi
-  volumeMode: Filesystem
-  accessModes:
-    - ReadWriteMany
-  hostPath:
-    path: /root/tokens
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: tokens-pvc
-spec:
-  accessModes:
-    - ReadWriteMany
-  resources:
-    requests:
-      storage: 50Gi
-
+      storage: 60Gi
 EOF
 printf "${GREEN} INSTALACAO CONCLUIDA 🚀🚀🚀🚀${GRAY_LIGHT} "  
 
