@@ -1,25 +1,7 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: worker
-data:
-  NODE_ENV: production
-  INSTANCE: edu-policarpo
-  TOKEN: 5fbf01251196601084294745
-  AMQP_HOST: rabbitmq-cluster-headless.infra.svc.cluster.local
-  AMQP_PORT: "5672"
-  AMQP_USER: admin
-  AMQP_PASSWORD: admin
-  AMQP_EXCHANGE: API-WhatsApp
-  AUTO_REJECT_CALL: "false"
-  ANSWER_MISSED_CALL: Ola nao posso atender ligacoes
-  WEBHOOK: ""
-  SENTRY_DSN: ""
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: sutia
+  name: edu
 spec:
   replicas: 1
   selector:
@@ -37,12 +19,33 @@ spec:
           - containerPort: 3000
             name: http
             protocol: TCP
-        envFrom:
-          - configMapRef:
-              name: worker
+        env:
+          - name: NODE_ENV
+            value: production
+          - name: INSTANCE
+            value: edu
+          - name: TOKEN
+            value: 5fbf01251196601084294745
+          - name: AMQP_HOST
+            value: rabbitmq-cluster-headless.infra.svc.cluster.local
+          - name: AMQP_PORT
+            value: "5672"
+          - name: AMQP_USER
+            value: admin
+          - name: AMQP_PASSWORD
+            value: admin
+          - name: AMQP_EXCHANGE
+            value: API-WhatsApp
+          - name: AUTO_REJECT_CALL
+            value: "false"
+          - name: ANSWER_MISSED_CALL
+            value: "Ola nao posso atender ligacoes"
+          - name: WEBHOOK
+            value: "https://webhook.site/0bc9114b-8b22-452e-83d4-bb6a6399d757"
+          - name: SENTRY_DSN
+            value: ""
         command: ["node"]
         args: ["dist/src/app.js"]
-        
         imagePullPolicy: IfNotPresent
         resources:
           requests:
@@ -52,15 +55,18 @@ spec:
             cpu: "1000m"
             memory: 240M
         volumeMounts:
-        - name: tokens-storage
-          mountPath: /usr/local/app/tokens/edu-policarpo
+        - name: data-volume  # Nome do volume de PVC
+          mountPath: /usr/local/app/tokens/edu   # Diretório dentro do contêiner onde o PVC será montado
+          subPath: tokens/sutia  # Subdiretório dentro do PVC a ser montado
+          readOnly: false
+        - name: data-volume  # Nome do volume de PVC
+          mountPath: /usr/local/app/logs/edu   # Diretório dentro do contêiner onde o PVC será montado
+          subPath: logs/sutia  # Subdiretório dentro do PVC a ser montado
+          readOnly: false
       volumes:
-      - name: tokens-storage
+      - name: data-volume  # Nome do volume de PVC
         persistentVolumeClaim:
-          claimName: tokens-pvc
-      - name: worker
-        configMap:
-          name: worker
+          claimName: data
       imagePullSecrets:
         - name: worker-registry
       
