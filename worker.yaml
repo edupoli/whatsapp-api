@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: edu
+  name: sutia
 spec:
   replicas: 1
   selector:
@@ -23,7 +23,7 @@ spec:
           - name: NODE_ENV
             value: production
           - name: INSTANCE
-            value: edu
+            value: sutia
           - name: TOKEN
             value: 5fbf01251196601084294745
           - name: AMQP_HOST
@@ -56,17 +56,17 @@ spec:
             memory: 240M
         volumeMounts:
         - name: data-volume  # Nome do volume de PVC
-          mountPath: /usr/local/app/tokens/edu   # Diretório dentro do contêiner onde o PVC será montado
+          mountPath: /usr/local/app/tokens/sutia   # Diretório dentro do contêiner onde o PVC será montado
           subPath: tokens/sutia  # Subdiretório dentro do PVC a ser montado
           readOnly: false
         - name: data-volume  # Nome do volume de PVC
-          mountPath: /usr/local/app/logs/edu   # Diretório dentro do contêiner onde o PVC será montado
+          mountPath: /usr/local/app/logs/sutia   # Diretório dentro do contêiner onde o PVC será montado
           subPath: logs/sutia  # Subdiretório dentro do PVC a ser montado
           readOnly: false
       volumes:
       - name: data-volume  # Nome do volume de PVC
         persistentVolumeClaim:
-          claimName: data
+          claimName: api-storage
       imagePullSecrets:
         - name: worker-registry
       
