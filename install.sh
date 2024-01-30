@@ -116,8 +116,20 @@ while true; do
   fi
 done
 
+get_range_ip() {
+  local local_ip=$(ip addr show dev $(ip route show default | awk '/default/ {print $5}') | awk '/inet / {print $2}' | cut -d/ -f1)
+  local result=$(ipcalc -n -b "$local_ip/24" | grep -E "Network")
+  local network=$(echo "$result" | awk -F ' ' '{print $2}')
+  local range_start=$(echo "$network" | cut -d. -f1-3).1
+  local range_end=$(echo "$network" | cut -d. -f1-3).254
+  echo "$range_start-$range_end"
+}
+
 sudo apt-get update
+sudo apt install -y ipcalc
 sudo snap install microk8s --classic
+sudo usermod -a -G microk8s $USER
+sudo chown -f -R $USER ~/.kube
 
 # criando alias para kubectl
 sudo echo "alias kubectl='microk8s kubectl'" >>/root/.bashrc
@@ -128,6 +140,7 @@ microk8s enable hostpath-storage
 microk8s enable metrics-server
 microk8s enable observability
 microk8s kubectl create namespace infra
+microk8s enable metallb:"$(get_range_ip)"
 
 # Configuração do cert-manager
 microk8s enable cert-manager
@@ -165,6 +178,7 @@ microk8s helm install rabbitmq-cluster bitnami/rabbitmq \
   --set replicaCount=2 \
   --set persistence.enabled=true \
   --set persistence.size=25Gi \
+  --set service.type=LoadBalancer \
   --namespace infra
 
 
@@ -176,6 +190,7 @@ microk8s helm install mongodb-cluster bitnami/mongodb \
   --set auth.database=wappi \
   --set replicaCount=2 \
   --set persistence.size=25Gi \
+  --set service.type=LoadBalancer \
   --namespace infra
 
 
@@ -190,8 +205,9 @@ rm api-server.yaml
 microk8s kubectl create ingress my-ingress \
     --annotation cert-manager.io/cluster-issuer=letsencrypt \
     --rule "${DOMAIN}/*=api-server-service:3000,tls=my-service-tls" \
-    --rule "${DOMAIN}/rabbitmq/*=rabbitmq-cluster:15672,tls=my-service-tls" \
-    --rule "${DOMAIN}/mongodb/*=mongodb-cluster:27017,tls=my-service-tls"
+    --rule "${DOMAIN}:15672=rabbitmq-cluster-headless:15672,tls=my-service-tls" \
+    --rule "${DOMAIN}:27017=mongodb-cluster-headless:27017,tls=my-service-tls"
+
 
 
 microk8s config > kubeconfig.yaml
