@@ -187,10 +187,12 @@ envsubst < api-server.yaml | microk8s kubectl apply -f -
 microk8s kubectl wait --for=condition=ready pod -l app=api-server --timeout=300s 
 rm api-server.yaml
 
-
 microk8s kubectl create ingress my-ingress \
     --annotation cert-manager.io/cluster-issuer=letsencrypt \
-    --rule "${DOMAIN}/*=api-server-service:3000,tls=my-service-tls"
+    --rule "${DOMAIN}/*=api-server-service:3000,tls=my-service-tls" \
+    --rule "${DOMAIN}/rabbitmq/*=rabbitmq-cluster:15672,tls=my-service-tls" \
+    --rule "${DOMAIN}/mongodb/*=mongodb-cluster:27017,tls=my-service-tls"
+
 
 microk8s config > kubeconfig.yaml
 sed -i "s|server: https://.*:16443|server: https://${DOMAIN}:16443|" kubeconfig.yaml
