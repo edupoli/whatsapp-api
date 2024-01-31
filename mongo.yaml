@@ -2,7 +2,8 @@
 apiVersion: mongodbcommunity.mongodb.com/v1
 kind: MongoDBCommunity
 metadata:
-  name: example-mongodb
+  name: mongodb
+  namespace: infra
 spec:
   members: 3
   type: ReplicaSet
