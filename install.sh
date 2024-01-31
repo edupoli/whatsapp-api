@@ -140,7 +140,7 @@ microk8s enable hostpath-storage
 microk8s enable metrics-server
 microk8s enable observability
 microk8s kubectl create namespace infra
-microk8s enable metallb:"$(get_range_ip)"
+
 
 # Configuração do cert-manager
 microk8s enable cert-manager
@@ -205,8 +205,8 @@ rm api-server.yaml
 microk8s kubectl create ingress my-ingress \
     --annotation cert-manager.io/cluster-issuer=letsencrypt \
     --rule "${DOMAIN}/*=api-server-service:3000,tls=my-service-tls" \
-    --rule "${DOMAIN}:15672=rabbitmq-cluster-headless:15672,tls=my-service-tls" \
-    --rule "${DOMAIN}:27017=mongodb-cluster-headless:27017,tls=my-service-tls"
+    --rule "${DOMAIN}:15672=rabbitmq-cluster-headless.infra.svc.cluster.local:15672,tls=my-service-tls" \
+    --rule "${DOMAIN}:27017=mongodb-cluster-headless.infra.svc.cluster.local:27017,tls=my-service-tls"
 
 
 
@@ -245,6 +245,7 @@ spec:
     requests:
       storage: 60Gi
 EOF
+microk8s enable metallb:"$(get_range_ip)"
 printf "${GREEN} INSTALACAO CONCLUIDA 🚀🚀🚀🚀${GRAY_LIGHT} "  
 
 #/bin/bash -c "$(curl -fsSL https://install.wappi.io)"
