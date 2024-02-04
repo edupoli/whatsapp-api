@@ -116,12 +116,26 @@ while true; do
   fi
 done
 
-get_range_ip() {
-  local local_ip=$(ip addr show dev $(ip route show default | awk '/default/ {print $5}') | awk '/inet / {print $2}' | cut -d/ -f1)
-  local result=$(ipcalc -n -b "$local_ip/24" | grep -E "Network")
-  local network=$(echo "$result" | awk -F ' ' '{print $2}')
-  local range_start=$(echo "$network" | cut -d. -f1-3).1
-  local range_end=$(echo "$network" | cut -d. -f1-3).254
+function calculate_ip_range() {
+  # Obter o endereço IP da interface padrão
+  local ip=$(ip addr show dev $(ip route show default | awk '/default/ {print $5}') | awk '/inet / {print $2}' | cut -d/ -f1)
+  local range_start=$ip
+  
+  # Extrair os octetos do endereço IP
+  IFS='.' read -r -a octetos <<< "$ip"
+  
+  # Incrementar o último octeto por 2
+  local ultimo_octeto=$((octetos[3] + 2))
+  
+  # Garantir que o último octeto não exceda 255
+  if [ $ultimo_octeto -gt 255 ]; then
+    echo "Erro: Incremento excede o limite de um octeto."
+    return 1
+  fi  
+  # Construir o endereço IP final
+  local range_end="${octetos[0]}.${octetos[1]}.${octetos[2]}.$ultimo_octeto"
+  
+  # Retornar os valores no formato solicitado
   echo "$range_start-$range_end"
 }
 
@@ -135,7 +149,13 @@ sudo chown -f -R $USER ~/.kube
 sudo echo "alias kubectl='microk8s kubectl'" >>/root/.bashrc
 sudo echo "alias k='microk8s kubectl'" >>/root/.bashrc
 
+microk8s enable dns
+sudo sysctl -w net.ipv6.conf.all.forwarding=1
+sudo iptables -P FORWARD ACCEPT
+sudo ufw allow in on vxlan.calico
+sudo ufw allow out on vxlan.calico
 
+microk8s enable metallb:"$(calculate_ip_range)"
 microk8s enable hostpath-storage
 microk8s enable metrics-server
 microk8s enable observability
@@ -144,30 +164,22 @@ microk8s kubectl create namespace infra
 
 # Configuração do cert-manager
 microk8s enable cert-manager
-microk8s kubectl apply -f - <<EOF
----
-apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
-metadata:
-  name: letsencrypt
-spec:
-  acme:
-    email: $EMAIL
-    server: https://acme-v02.api.letsencrypt.org/directory
-    privateKeySecretRef:
-      name: letsencrypt-account-key
-    solvers:
-    - http01:
-        ingress:
-          class: public
-EOF
+
+microk8s kubectl create clusterissuer letsencrypt --namespace default --email $EMAIL \
+  --acme-server https://acme-v02.api.letsencrypt.org/directory \
+  --acme-private-key-secret-name letsencrypt-account-key \
+  --issuer-name letsencrypt --dns01-01-ingress-class public
+
+microk8s kubectl create certificate $DOMAIN-tls --namespace default --common-name $DOMAIN \
+  --dns $DOMAIN \
+  --cluster-issuer letsencrypt
 
 microk8s enable ingress
 
 microk8s enable helm
 
 microk8s helm repo add bitnami https://charts.bitnami.com/bitnami
-# microk8s helm3 repo add ot-helm https://ot-container-kit.github.io/helm-charts/
+
 microk8s helm repo update       
 
 microk8s helm install rabbitmq-cluster bitnami/rabbitmq \
@@ -183,16 +195,20 @@ microk8s helm install rabbitmq-cluster bitnami/rabbitmq \
 
 
 microk8s helm install mongodb-cluster bitnami/mongodb \
-  --set architecture=replicaset \
   --set auth.rootPassword=admin123 \
   --set auth.username=admin \
   --set auth.password=admin \
   --set auth.database=wappi \
-  --set replicaCount=2 \
   --set persistence.size=25Gi \
-  --set service.type=LoadBalancer \
+  --set architecture=replicaset \
+  --set replicaCount=2 \
+  --set externalAccess.enabled=true \
+  --set externalAccess.service.type=LoadBalancer \
+  --set externalAccess.service.port=27017 \
+  --set externalAccess.autoDiscovery.enabled=true \
+  --set serviceAccount.create=true \
+  --set rbac.create=true \
   --namespace infra
-
 
 
 # deploy api-server
@@ -204,10 +220,7 @@ rm api-server.yaml
 
 microk8s kubectl create ingress my-ingress \
     --annotation cert-manager.io/cluster-issuer=letsencrypt \
-    --rule "${DOMAIN}/*=api-server-service:3000,tls=my-service-tls" \
-    --rule "${DOMAIN}:15672=rabbitmq-cluster-headless.infra.svc.cluster.local:15672,tls=my-service-tls" \
-    --rule "${DOMAIN}:27017=mongodb-cluster-headless.infra.svc.cluster.local:27017,tls=my-service-tls"
-
+    --rule "${DOMAIN}/*=api-server-service:3000,tls=${DOMAIN}-tls" 
 
 
 microk8s config > kubeconfig.yaml
@@ -215,11 +228,6 @@ sed -i "s|server: https://.*:16443|server: https://${DOMAIN}:16443|" kubeconfig.
 sed -i '/certificate-authority-data/d' kubeconfig.yaml
 sed -i '/server: https:\/\//a \ \ \ \ insecure-skip-tls-verify: true' kubeconfig.yaml
 sed -i 's|microk8s-cluster|api-server|g' kubeconfig.yaml
-
-
-
-# configura o envio de email
-
 
 microk8s kubectl apply -f - <<EOF
 apiVersion: storage.k8s.io/v1
@@ -245,7 +253,5 @@ spec:
     requests:
       storage: 60Gi
 EOF
-microk8s enable metallb:"$(get_range_ip)"
-printf "${GREEN} INSTALACAO CONCLUIDA 🚀🚀🚀🚀${GRAY_LIGHT} "  
 
-#/bin/bash -c "$(curl -fsSL https://install.wappi.io)"
+printf "${GREEN} INSTALACAO CONCLUIDA 🚀🚀🚀🚀${GRAY_LIGHT} "  
