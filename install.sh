@@ -117,25 +117,16 @@ while true; do
 done
 
 function calculate_ip_range() {
-  # Obter o endereço IP da interface padrão
   local ip=$(ip addr show dev $(ip route show default | awk '/default/ {print $5}') | awk '/inet / {print $2}' | cut -d/ -f1)
   local range_start=$ip
   
-  # Extrair os octetos do endereço IP
   IFS='.' read -r -a octetos <<< "$ip"
-  
-  # Incrementar o último octeto por 2
   local ultimo_octeto=$((octetos[3] + 2))
-  
-  # Garantir que o último octeto não exceda 255
   if [ $ultimo_octeto -gt 255 ]; then
     echo "Erro: Incremento excede o limite de um octeto."
     return 1
-  fi  
-  # Construir o endereço IP final
+  fi
   local range_end="${octetos[0]}.${octetos[1]}.${octetos[2]}.$ultimo_octeto"
-  
-  # Retornar os valores no formato solicitado
   echo "$range_start-$range_end"
 }
 
@@ -150,12 +141,9 @@ sudo echo "alias kubectl='microk8s kubectl'" >>/root/.bashrc
 sudo echo "alias k='microk8s kubectl'" >>/root/.bashrc
 
 microk8s enable dns
-
 sudo iptables -P FORWARD ACCEPT
-sudo ufw default allow incoming
-sudo ufw default allow outgoing
-sudo ufw disable
-sudo ufw enable
+sudo ufw allow in on vxlan.calico
+sudo ufw allow out on vxlan.calico
 
 microk8s enable metallb:"$(calculate_ip_range)"
 microk8s enable hostpath-storage
@@ -163,18 +151,41 @@ microk8s enable metrics-server
 microk8s enable observability
 microk8s kubectl create namespace infra
 
-
 # Configuração do cert-manager
 microk8s enable cert-manager
 
-microk8s kubectl create clusterissuer letsencrypt --namespace default --email $EMAIL \
-  --acme-server https://acme-v02.api.letsencrypt.org/directory \
-  --acme-private-key-secret-name letsencrypt-account-key \
-  --issuer-name letsencrypt --dns01-01-ingress-class public
+microk8s kubectl apply -f - <<EOF
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt
+spec:
+  acme:
+    email: $EMAIL
+    server: https://acme-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: letsencrypt-account-key
+    solvers:
+    - http01:
+        ingress:
+          class: public
+EOF
 
-microk8s kubectl create certificate $DOMAIN-tls --namespace default --common-name $DOMAIN \
-  --dns $DOMAIN \
-  --cluster-issuer letsencrypt
+microk8s kubectl apply -f - <<EOF
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: ${DOMAIN}-tls
+  namespace: default
+spec:
+  secretName: ${DOMAIN}-tls-secret
+  issuerRef:
+    name: letsencrypt
+    kind: ClusterIssuer
+  commonName: ${DOMAIN}
+  dnsNames:
+  - ${DOMAIN}
+EOF
 
 microk8s enable ingress
 
