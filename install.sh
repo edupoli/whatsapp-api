@@ -150,10 +150,12 @@ sudo echo "alias kubectl='microk8s kubectl'" >>/root/.bashrc
 sudo echo "alias k='microk8s kubectl'" >>/root/.bashrc
 
 microk8s enable dns
-sudo sysctl -w net.ipv6.conf.all.forwarding=1
+
 sudo iptables -P FORWARD ACCEPT
-sudo ufw allow in on vxlan.calico
-sudo ufw allow out on vxlan.calico
+sudo ufw default allow incoming
+sudo ufw default allow outgoing
+sudo ufw disable
+sudo ufw enable
 
 microk8s enable metallb:"$(calculate_ip_range)"
 microk8s enable hostpath-storage
